@@ -14,7 +14,6 @@ from prompt_toolkit.shortcuts import radiolist_dialog
 
 from openconnect_sso import config
 from openconnect_sso.authenticator import Authenticator, AuthResponseError
-from openconnect_sso.browser import Terminated
 from openconnect_sso.config import Credentials
 from openconnect_sso.profile import get_profiles
 
@@ -41,9 +40,6 @@ def run(args):
         msg, retval = e.args
         logger.error(msg)
         return retval
-    except Terminated:
-        logger.warn("Browser window terminated, exiting")
-        return 2
     except AuthResponseError as exc:
         logger.error(
             f'Required attributes not found in response ("{exc}", does this endpoint do SSO?), exiting'
@@ -173,9 +169,12 @@ def authenticate_to(host, proxy, credentials, display_mode):
 def run_openconnect(auth_info, host, proxy, args):
     command_line = [
         "sudo",
-        "openconnect",
-        "--cookie",
-        auth_info.session_token,
+        "openconnect_jail.sh",
+        "-i",
+        "tun0",
+        "--script",
+        "/var/lib/openconnect/vpnc-script",
+        "--cookie-on-stdin",
         "--servercert",
         auth_info.server_cert_hash,
         *args,
@@ -184,8 +183,10 @@ def run_openconnect(auth_info, host, proxy, args):
     if proxy:
         command_line.extend(["--proxy", proxy])
 
-    logger.debug("Starting OpenConnect", command_line=command_line)
-    return subprocess.run(command_line).returncode
+    cookie_in = auth_info.session_token.encode('utf-8')
+
+    logger.info("Starting OpenConnect", command_line=command_line)
+    return subprocess.run(command_line, input=cookie_in).returncode
 
 
 def handle_disconnect(command):

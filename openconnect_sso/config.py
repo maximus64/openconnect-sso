@@ -3,11 +3,7 @@ from pathlib import Path
 from urllib.parse import urlparse, urlunparse
 
 import attr
-import keyring
-import keyring.errors
 import structlog
-import toml
-import xdg.BaseDirectory
 
 logger = structlog.get_logger()
 
@@ -15,35 +11,11 @@ APP_NAME = "openconnect-sso"
 
 
 def load():
-    path = xdg.BaseDirectory.load_first_config(APP_NAME)
-    if not path:
-        return Config()
-    config_path = Path(path) / "config.toml"
-    if not config_path.exists():
-        return Config()
-    with config_path.open() as config_file:
-        try:
-            return Config.from_dict(toml.load(config_file))
-        except Exception:
-            logger.error(
-                "Could not load configuration file, ignoring",
-                path=config_path,
-                exc_info=True,
-            )
-            return Config()
+    return Config()
 
 
 def save(config):
-    path = xdg.BaseDirectory.save_config_path(APP_NAME)
-    config_path = Path(path) / "config.toml"
-    try:
-        config_path.touch()
-        with config_path.open("w") as config_file:
-            toml.dump(config.as_dict(), config_file)
-    except Exception:
-        logger.error(
-            "Could not save configuration file", path=config_path, exc_info=True
-        )
+    pass
 
 
 @attr.s
@@ -99,18 +71,11 @@ class Credentials(ConfigNode):
 
     @property
     def password(self):
-        try:
-            return keyring.get_password(APP_NAME, self.username)
-        except keyring.errors.KeyringError:
-            logger.info("Cannot retrieve saved password from keyring.")
-            return ""
+        return ""
 
     @password.setter
     def password(self, value):
-        try:
-            keyring.set_password(APP_NAME, self.username, value)
-        except keyring.errors.KeyringError:
-            logger.info("Cannot save password to keyring.")
+        pass
 
 
 @attr.s
